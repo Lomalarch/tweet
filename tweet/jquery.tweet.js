@@ -29,7 +29,14 @@
       },
       filter: function(tweet) {                 // [function] whether or not to include a particular tweet (be sure to also set 'fetch')
         return true;
-      }
+      },
+      text_less_min: "less than a minute ago",  // [string]   text for tweets less than a minute old
+      text_one_min: "about a minute ago",       // [string]   text for tweets between one and two minutes old
+      text_n_mins: "%t minutes ago",            // [string]   text for tweets less than an hour old
+      text_one_hour: "about an hour ago",       // [string]   text for tweets between 60 and 90 minutes old
+      text_n_hours: "about %t hours ago",       // [string]   text for tweets less than a day old
+      text_one_day: "1 day ago",                // [string]   text for tweets between 24 and 48 hours old
+      text_n_days: "%t days ago"                // [string]   text for tweets more than two days old
     }, o);
 
     $.fn.extend({
@@ -97,23 +104,21 @@
     function relative_time(date) {
       var relative_to = (arguments.length > 1) ? arguments[1] : new Date();
       var delta = parseInt((relative_to.getTime() - date) / 1000, 10);
-      var r = '';
-      if (delta < 60) {
-        r = delta + ' seconds ago';
+      if(delta < 60) {
+      return s.text_less_min;
       } else if(delta < 120) {
-        r = 'a minute ago';
+      return s.text_one_min;
       } else if(delta < (45*60)) {
-        r = (parseInt(delta / 60, 10)).toString() + ' minutes ago';
-      } else if(delta < (2*60*60)) {
-        r = 'an hour ago';
+      return s.text_n_mins.replace('%t', parseInt(delta / 60).toString());
+      } else if(delta < (120*60)) {
+      return s.text_one_hour;
       } else if(delta < (24*60*60)) {
-        r = '' + (parseInt(delta / 3600, 10)).toString() + ' hours ago';
+      return s.text_n_hours.replace('%t', parseInt(delta / 3600).toString());
       } else if(delta < (48*60*60)) {
-        r = 'a day ago';
+      return s.text_one_day;
       } else {
-        r = (parseInt(delta / 86400, 10)).toString() + ' days ago';
+      return s.text_n_days.replace('%t', parseInt(delta / 86400).toString());
       }
-      return 'about ' + r;
     }
 
     function build_url() {
@@ -161,19 +166,27 @@
 
           var tweets = $.map(data.results || data, function(item){
             var join_text = s.join_text;
+	  var from_user = item.from_user || item.user.screen_name;
+	  if (s.list || (s.query == null && s.username.length == 1)) {var from_user_full_name = item.user.name}
+	  else var from_user_full_name = from_user;
 
-            // auto join text based on verb tense and content
+          // auto join text based on verb tense and content
             if (s.join_text == "auto") {
               if (item.text.match(/^(@([A-Za-z0-9-_]+)) .*/i)) {
-                join_text = s.auto_join_text_reply;
-              } else if (item.text.match(/(^\w+:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+) .*/i)) {
-                join_text = s.auto_join_text_url;
+                join_text = s.auto_join_text_reply.replace('%u','<a href="http://twitter.com/'+from_user+'">'+from_user+'</a>');
+		join_text = join_text.replace('%U','<a href="http://twitter.com/'+from_user+'">'+from_user_full_name+'</a>');
+	      } else if (item.text.match(/(^\w+:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+) .*/i)) {
+                join_text = s.auto_join_text_url.replace('%u','<a href="http://twitter.com/'+from_user+'">'+from_user+'</a>');
+		join_text = join_text.replace('%U','<a href="http://twitter.com/'+from_user+'">'+from_user_full_name+'</a>');
               } else if (item.text.match(/^((\w+ed)|just) .*/im)) {
-                join_text = s.auto_join_text_ed;
+                join_text = s.auto_join_text_ed.replace('%u','<a href="http://twitter.com/'+from_user+'">'+from_user+'</a>');
+		join_text = join_text.replace('%U','<a href="http://twitter.com/'+from_user+'">'+from_user_full_name+'</a>');
               } else if (item.text.match(/^(\w*ing) .*/i)) {
-                join_text = s.auto_join_text_ing;
+                join_text = s.auto_join_text_ing.replace('%u','<a href="http://twitter.com/'+from_user+'">'+from_user+'</a>');
+		join_text = join_text.replace('%U','<a href="http://twitter.com/'+from_user+'">'+from_user_full_name+'</a>');
               } else {
-                join_text = s.auto_join_text_default;
+                join_text = s.auto_join_text_default.replace('%u','<a href="http://twitter.com/'+from_user+'">'+from_user+'</a>');
+		join_text = join_text.replace('%U','<a href="http://twitter.com/'+from_user+'">'+from_user_full_name+'</a>');
               }
             }
 
@@ -197,7 +210,7 @@
             var avatar = (avatar_size ?
                           ('<a class="tweet_avatar" href="'+user_url+'"><img src="'+avatar_url+
                            '" height="'+avatar_size+'" width="'+avatar_size+
-                           '" alt="'+screen_name+'\'s avatar" title="'+screen_name+'\'s avatar" border="0"/></a>') : '');
+                           '" alt="'+screen_name+'\'s avatar" /></a>') : '');
             var time = '<span class="tweet_time"><a href="'+tweet_url+'" title="view tweet on twitter">'+tweet_relative_time+'</a></span>';
             var text = '<span class="tweet_text">'+$([tweet_text]).makeHeart().capAwesome().capEpic()[0]+ '</span>';
 
